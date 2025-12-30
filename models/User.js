@@ -5,14 +5,20 @@ const userSchema = new mongoose.Schema(
     // --- Generated Credentials ---
     registrationId: {
       type: String,
-      unique: true, // This is now the unique identifier, not email
+      unique: true, 
     },
     password: {
       type: String,
     },
+    
+    // --- Role Based Access ---
+    role: {
+      type: String,
+      enum: ["user", "admin"],
+      default: "user", // Default is user. Change to 'admin' manually in DB.
+    },
 
     // --- Personal Details ---
-    // Removed 'unique: true' so same email can register multiple times
     fullName: { type: String, required: true, trim: true },
     email: { type: String, required: true, trim: true, lowercase: true }, 
     mobile: { type: String, required: true, trim: true },

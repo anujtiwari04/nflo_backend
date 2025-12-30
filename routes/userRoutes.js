@@ -3,7 +3,7 @@ const router = express.Router();
 const { registerUser, loginUser, createOrder, sendOtp, verifyOtp } = require("../controllers/userController");
 const { getEbook } = require("../controllers/ebookController");
 const upload = require("../middleware/upload");
-const protect = require("../middleware/auth");
+const { protect, admin } = require("../middleware/auth");
 
 // Route: POST /api/user/register
 router.post("/register", upload.single("photo"), registerUser);
