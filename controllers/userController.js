@@ -11,7 +11,7 @@ sgMail.setApiKey(process.env.SENDGRID_API_KEY);
 const generateRegistrationId = async () => {
   const lastUser = await User.findOne().sort({ createdAt: -1 });
   const prefix = "NFLO26-";
-  if (!lastUser || !lastUser.registrationId) return prefix + "001";
+  if (!lastUser || !lastUser.registrationId) return prefix + "1001";
   const lastIdStr = lastUser.registrationId.split("-")[1]; 
   const lastIdNum = parseInt(lastIdStr, 10);
   const newIdNum = lastIdNum + 1;
@@ -190,4 +190,95 @@ const loginUser = async (req, res) => {
   }
 };
 
-module.exports = { registerUser, loginUser, createOrder, sendOtp, verifyOtp };
+const getAllUsers = async (req, res) => {
+  try {
+    const { 
+      page = 1, 
+      limit = 10, 
+      search, 
+      category, 
+      hardCopy, 
+      city 
+    } = req.query;
+
+    const query = { role: "user" }; 
+
+    // 1. Updated Search Logic
+    if (search) {
+      query.$or = [
+        { fullName: { $regex: search, $options: "i" } },
+        { email: { $regex: search, $options: "i" } },
+        { mobile: { $regex: search, $options: "i" } },
+        { registrationId: { $regex: search, $options: "i" } },
+        // Added requested fields:
+        { fatherName: { $regex: search, $options: "i" } },
+        { motherName: { $regex: search, $options: "i" } },
+        { city: { $regex: search, $options: "i" } },
+        { pincode: { $regex: search, $options: "i" } },
+      ];
+    }
+
+    // 2. Filters
+    if (category && category !== "all") {
+      query.category = category;
+    }
+    
+    // Note: If 'search' is used for city, this specific filter might be redundant 
+    // depending on UI, but keeping it for specific filtering if needed.
+    if (city) {
+       query.city = { $regex: city, $options: "i" };
+    }
+
+    if (hardCopy && hardCopy !== "all") {
+      query.hardCopy = hardCopy === "true";
+    }
+
+    // 3. Execute Query
+    const users = await User.find(query)
+      .sort({ createdAt: -1 })
+      .limit(limit * 1)
+      .skip((page - 1) * limit)
+      .select("-password"); 
+
+    const total = await User.countDocuments(query);
+
+    res.status(200).json({
+      success: true,
+      users,
+      pagination: {
+        totalUsers: total,
+        totalPages: Math.ceil(total / limit),
+        currentPage: Number(page),
+      }
+    });
+
+  } catch (error) {
+    console.error("Fetch Users Error:", error);
+    res.status(500).json({ success: false, message: "Failed to fetch users" });
+  }
+};
+
+const getUserById = async (req, res) => {
+  try {
+    const user = await User.findById(req.params.id).select("-password");
+    
+    if (!user) {
+      return res.status(404).json({ success: false, message: "User not found" });
+    }
+
+    res.status(200).json({ success: true, user });
+  } catch (error) {
+    console.error("Fetch Single User Error:", error);
+    res.status(500).json({ success: false, message: "Server Error" });
+  }
+};
+
+module.exports = { 
+  registerUser, 
+  loginUser, 
+  createOrder, 
+  getAllUsers, 
+  sendOtp, 
+  verifyOtp,
+  getUserById
+};
