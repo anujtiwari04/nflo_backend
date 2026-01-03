@@ -137,6 +137,7 @@ const registerUser = async (req, res) => {
       hardCopy: hardCopy === "true",
       totalPaid: Number(totalPrice),
       photoPath: req.file.path,
+      transactionId: razorpay_payment_id,
     });
 
     // Send Credentials Email (Requirement #3)
@@ -210,11 +211,11 @@ const getAllUsers = async (req, res) => {
         { email: { $regex: search, $options: "i" } },
         { mobile: { $regex: search, $options: "i" } },
         { registrationId: { $regex: search, $options: "i" } },
-        // Added requested fields:
         { fatherName: { $regex: search, $options: "i" } },
         { motherName: { $regex: search, $options: "i" } },
         { city: { $regex: search, $options: "i" } },
         { pincode: { $regex: search, $options: "i" } },
+        { transactionId: { $regex: search, $options: "i" } },
       ];
     }
 

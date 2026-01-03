@@ -40,6 +40,7 @@ const userSchema = new mongoose.Schema(
     hardCopy: { type: Boolean, default: false },
     totalPaid: { type: Number, required: true },
     photoPath: { type: String, required: true },
+    transactionId: { type: String },
   },
   { timestamps: true }
 );
