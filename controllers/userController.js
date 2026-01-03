@@ -1,8 +1,8 @@
 const User = require("../models/User");
 const Otp = require("../models/Otp");
 const jwt = require("jsonwebtoken");
-const sgMail = require('@sendgrid/mail'); // Keeping for existing logic if needed, or replace with sendEmail
-const { sendEmail } = require("../config/mailer.config"); // Use centralized mailer
+const sgMail = require('@sendgrid/mail'); 
+const { sendEmail } = require("../config/mailer.config");
 const razorpayInstance = require("../config/razorpay.config");
 const crypto = require("crypto");
 
