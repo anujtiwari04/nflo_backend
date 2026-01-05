@@ -5,6 +5,8 @@ const sgMail = require('@sendgrid/mail');
 const { sendEmail } = require("../config/mailer.config");
 const razorpayInstance = require("../config/razorpay.config");
 const crypto = require("crypto");
+// Import the centralized prices
+const { PRICES } = require("../config/constants");
 
 sgMail.setApiKey(process.env.SENDGRID_API_KEY);
 
@@ -19,24 +21,20 @@ const generateRegistrationId = async () => {
   return prefix + newIdStr;
 };
 
-
 // 1. Send OTP
 const sendOtp = async (req, res) => {
   try {
     const { email } = req.body;
     if (!email) return res.status(400).json({ success: false, message: "Email is required" });
 
-    // Generate 6 digit OTP
     const otp = Math.floor(100000 + Math.random() * 900000).toString();
 
-    // Save to DB (Update if exists or Insert new)
     await Otp.findOneAndUpdate(
       { email },
       { otp, createdAt: Date.now() },
       { upsert: true, new: true, setDefaultsOnInsert: true }
     );
 
-    // Send Email
     await sendEmail({
       to: email,
       subject: "NFLO Verification Code",
@@ -65,9 +63,6 @@ const verifyOtp = async (req, res) => {
     if (!record) {
       return res.status(400).json({ success: false, message: "Invalid or expired OTP" });
     }
-
-    // Optional: Delete OTP after usage to prevent reuse
-    // await Otp.deleteOne({ _id: record._id });
 
     res.status(200).json({ success: true, message: "Email verified successfully" });
   } catch (error) {
@@ -98,12 +93,24 @@ const registerUser = async (req, res) => {
   try {
     const {
       fullName, fatherName, motherName, mobile, email,
-      category, courseName, address, pincode, city,
+      category, courseName, schoolName, address, pincode, city,
       hardCopy, totalPrice,
       razorpay_order_id, razorpay_payment_id, razorpay_signature 
     } = req.body;
 
-    // Verify Payment
+    // --- Server-side Price Verification ---
+    const basePrice = PRICES[category] || 0;
+    const bookPrice = hardCopy === "true" ? PRICES.hardCopy : 0;
+    const expectedTotal = basePrice + bookPrice;
+
+    if (Number(totalPrice) !== expectedTotal) {
+        return res.status(400).json({ 
+            success: false, 
+            message: "Invalid payment amount calculated." 
+        });
+    }
+
+    // Verify Payment Signature
     const sign = razorpay_order_id + "|" + razorpay_payment_id;
     const expectedSign = crypto
       .createHmac("sha256", process.env.RAZORPAY_KEY_SECRET)
@@ -131,6 +138,7 @@ const registerUser = async (req, res) => {
       email,
       category,
       courseName,
+      schoolName,
       address,
       pincode,
       city,
@@ -140,7 +148,6 @@ const registerUser = async (req, res) => {
       transactionId: razorpay_payment_id,
     });
 
-    // Send Credentials Email (Requirement #3)
     await sendEmail({
       to: email,
       subject: 'NFLO Registration Successful',
@@ -193,21 +200,13 @@ const loginUser = async (req, res) => {
 
 const getAllUsers = async (req, res) => {
   try {
-    const { 
-      page = 1, 
-      limit = 10, 
-      search, 
-      category, 
-      hardCopy, 
-      city 
-    } = req.query;
-
+    const { page = 1, limit = 10, search, category, hardCopy, city } = req.query;
     const query = { role: "user" }; 
 
-    // 1. Updated Search Logic
     if (search) {
       query.$or = [
         { fullName: { $regex: search, $options: "i" } },
+        { schoolName: { $regex: search, $options: "i" } },
         { email: { $regex: search, $options: "i" } },
         { mobile: { $regex: search, $options: "i" } },
         { registrationId: { $regex: search, $options: "i" } },
@@ -219,13 +218,10 @@ const getAllUsers = async (req, res) => {
       ];
     }
 
-    // 2. Filters
     if (category && category !== "all") {
       query.category = category;
     }
     
-    // Note: If 'search' is used for city, this specific filter might be redundant 
-    // depending on UI, but keeping it for specific filtering if needed.
     if (city) {
        query.city = { $regex: city, $options: "i" };
     }
@@ -234,7 +230,6 @@ const getAllUsers = async (req, res) => {
       query.hardCopy = hardCopy === "true";
     }
 
-    // 3. Execute Query
     const users = await User.find(query)
       .sort({ createdAt: -1 })
       .limit(limit * 1)
@@ -262,14 +257,9 @@ const getAllUsers = async (req, res) => {
 const getUserById = async (req, res) => {
   try {
     const user = await User.findById(req.params.id).select("-password");
-    
-    if (!user) {
-      return res.status(404).json({ success: false, message: "User not found" });
-    }
-
+    if (!user) return res.status(404).json({ success: false, message: "User not found" });
     res.status(200).json({ success: true, user });
   } catch (error) {
-    console.error("Fetch Single User Error:", error);
     res.status(500).json({ success: false, message: "Server Error" });
   }
 };

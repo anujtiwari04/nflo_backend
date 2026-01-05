@@ -5,6 +5,7 @@ const cors = require('cors');
 const path = require('path');
 const connectDB = require('./config/db');  
 const allRoutes = require('./routes/main');
+const examRoutes = require('./routes/examRoutes');
 
 const app = express();
 app.use(express.json());
@@ -42,6 +43,7 @@ const PORT = process.env.PORT || 5000;
 
 // Use the master router for all API routes
 app.use('/api', allRoutes); // All routes will be prefixed with /api
+app.use("/api/exam", examRoutes);
 
 app.listen(PORT, () => {
   console.log(`Server listening on port ${PORT}`);

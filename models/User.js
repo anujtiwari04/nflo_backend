@@ -1,4 +1,5 @@
 const mongoose = require("mongoose");
+const { USER_CATEGORY_ENUM } = require("../config/constants");
 
 const userSchema = new mongoose.Schema(
   {
@@ -32,9 +33,10 @@ const userSchema = new mongoose.Schema(
     category: {
       type: String,
       required: true,
-      enum: ["Class 6th to 10th", "Class 11th / 12th", "College"],
+      enum: USER_CATEGORY_ENUM,
     },
     courseName: { type: String, required: true, trim: true },
+    schoolName: { type: String, required: true, trim: true },
     
     // --- Transaction ---
     hardCopy: { type: Boolean, default: false },
