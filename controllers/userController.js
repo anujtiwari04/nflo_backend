@@ -5,7 +5,6 @@ const sgMail = require('@sendgrid/mail');
 const { sendEmail } = require("../config/mailer.config");
 const razorpayInstance = require("../config/razorpay.config");
 const crypto = require("crypto");
-// Import the centralized prices
 const { PRICES } = require("../config/constants");
 
 sgMail.setApiKey(process.env.SENDGRID_API_KEY);
@@ -13,12 +12,21 @@ sgMail.setApiKey(process.env.SENDGRID_API_KEY);
 const generateRegistrationId = async () => {
   const lastUser = await User.findOne().sort({ createdAt: -1 });
   const prefix = "NFLO26-";
-  if (!lastUser || !lastUser.registrationId) return prefix + "1001";
-  const lastIdStr = lastUser.registrationId.split("-")[1]; 
-  const lastIdNum = parseInt(lastIdStr, 10);
-  const newIdNum = lastIdNum + 1;
-  const newIdStr = newIdNum.toString().padStart(3, "0");
-  return prefix + newIdStr;
+
+  // Case 1: No users exist yet
+  if (!lastUser || !lastUser.registrationId) {
+    return prefix + "1001";
+  }
+
+  // Case 2: Users exist, increment the ID
+  const parts = lastUser.registrationId.split("-");
+  const lastIdNum = parseInt(parts[1], 10);
+  
+  // Safety check: if parsing fails or previous IDs were < 1000, jump to 1001
+  let newIdNum = isNaN(lastIdNum) ? 1001 : lastIdNum + 1;
+  if (newIdNum < 1001) newIdNum = 1001;
+
+  return prefix + newIdNum;
 };
 
 // 1. Send OTP
@@ -93,7 +101,7 @@ const registerUser = async (req, res) => {
   try {
     const {
       fullName, fatherName, motherName, mobile, email,
-      category, courseName, schoolName, address, pincode, city,
+      category, schoolName, courseName, address, pincode, city,
       hardCopy, totalPrice,
       razorpay_order_id, razorpay_payment_id, razorpay_signature 
     } = req.body;
@@ -126,7 +134,9 @@ const registerUser = async (req, res) => {
     }
 
     const newRegistrationId = await generateRegistrationId();
-    const generatedPassword = `${email}#${newRegistrationId}`;
+    
+    // CHANGE: Password is now the mobile number
+    const generatedPassword = mobile;
 
     const newUser = await User.create({
       registrationId: newRegistrationId,
@@ -137,8 +147,8 @@ const registerUser = async (req, res) => {
       mobile,
       email,
       category,
-      courseName,
       schoolName,
+      courseName,
       address,
       pincode,
       city,
