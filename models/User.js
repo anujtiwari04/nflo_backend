@@ -16,7 +16,7 @@ const userSchema = new mongoose.Schema(
     role: {
       type: String,
       enum: ["user", "admin"],
-      default: "user", // Default is user. Change to 'admin' manually in DB.
+      default: "user", 
     },
 
     // --- Personal Details ---
@@ -43,6 +43,13 @@ const userSchema = new mongoose.Schema(
     totalPaid: { type: Number, required: true },
     photoPath: { type: String, required: true },
     transactionId: { type: String },
+
+    // --- NEW FIELDS FOR BULK UPLOAD FEATURES ---
+    isPhotoUploaded: { 
+      type: Boolean, 
+      default: true, 
+      required: true 
+    }, // False if using placeholder
   },
   { timestamps: true }
 );
